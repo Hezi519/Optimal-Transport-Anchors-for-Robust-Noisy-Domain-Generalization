@@ -2331,6 +2331,39 @@ class ERMReg(ERM):
 #     def predict(self, x):
 #         return self.network(x)
 
+# TODO: change cosine similarity to EOT begin
+def _sinkhorn_entropic_cost_1d_hist(a, b, eps=0.05, n_iters=50, device=None):
+    """
+    EOT cost between two 1D histograms a,b on fixed support {0,...,D-1}.
+    a, b: (D,) non-negative、sum to 1
+    return: OT cost
+    """
+    D = a.shape[0]
+    if device is None:
+        device = a.device
+    # C_{ij} = (i-j)^2
+    idx = torch.arange(D, device=device).float()
+    C = (idx[:, None] - idx[None, :]) ** 2  # (D, D)
+
+    # log-domain Sinkhorn
+    log_a = torch.log(a + 1e-12)
+    log_b = torch.log(b + 1e-12)
+    log_K = -C / eps  # (D, D)
+
+    log_u = torch.zeros(D, device=device)
+    log_v = torch.zeros(D, device=device)
+
+    for _ in range(n_iters):
+        log_u = log_a - torch.logsumexp(log_K + log_v[None, :], dim=1)
+        log_v = log_b - torch.logsumexp(log_K.T + log_u[None, :], dim=1)
+
+    # pi = diag(u) K diag(v) in log-space
+    log_pi = log_u[:, None] + log_K + log_v[None, :]
+    pi = torch.exp(log_pi)  # (D, D)
+    cost = torch.sum(pi * C)
+    return cost
+# TODO: change cosine similarity to EOT end
+
 class NLPGERM(ERM):
 
     def __init__(self, input_shape, num_classes, num_domains, hparams):
@@ -2411,15 +2444,46 @@ class NLPGERM(ERM):
         else:
             raise NotImplementedError('Please provide a valid mapsty.')
 
+    # TODO: change cosine similarity to EOT begin
     def align_loss(self, fea, y):
-        """
-        Compute optimal transport-inspired loss with mapping layers and NLP anchors.
-        """
-        losses = torch.zeros(len(y)).to(y.device)
-        for i in range(len(fea)):
-            losses[i] = -F.cosine_similarity(self.maplayers[y[i]](fea[i]), self.nlpanchor[y[i]], dim=0)
-        weights = F.softmax((-losses.detach() * self.hparams['temp'])).detach()
+        device = y.device
+        T = self.hparams.get('temp', 1.0)
+        eps = self.hparams.get('ot_eps', 0.05)
+        iters = self.hparams.get('ot_iters', 50)
+
+        N = len(y)
+        losses = torch.zeros(N, device=device)
+
+        for i in range(N):
+            y_idx = int(y[i])
+            mapped = self.maplayers[y_idx](fea[i])           # (D,)
+            anchor = self.nlpanchor[y_idx]                    # (D,)
+
+            pa = F.softmax(mapped, dim=0)                    # (D,)
+            pb = F.softmax(anchor, dim=0)                    # (D,)
+
+
+            # Sinkhorn divergence：
+            ot_ab = _sinkhorn_entropic_cost_1d_hist(pa, pb, eps=eps, n_iters=iters, device=device)
+            ot_aa = _sinkhorn_entropic_cost_1d_hist(pa, pa, eps=eps, n_iters=iters, device=device)
+            ot_bb = _sinkhorn_entropic_cost_1d_hist(pb, pb, eps=eps, n_iters=iters, device=device)
+            sink_div = 2 * ot_ab - ot_aa - ot_bb
+            losses[i] = sink_div
+
+        weights = F.softmax((-losses.detach() * T), dim=0).detach()
         return torch.sum(losses * weights), weights
+
+    # def align_loss(self, fea, y):
+    #     """
+    #     Compute optimal transport-inspired loss with mapping layers and NLP anchors.
+    #     """
+    #     losses = torch.zeros(len(y)).to(y.device)
+    #     for i in range(len(fea)):
+    #         losses[i] = -F.cosine_similarity(self.maplayers[y[i]](fea[i]), self.nlpanchor[y[i]], dim=0)
+    #     weights = F.softmax((-losses.detach() * self.hparams['temp'])).detach()
+    #     return torch.sum(losses * weights), weights
+
+    # TODO: change cosine similarity to EOT end
 
     def update_cold(self, minibatches, unlabeled=None):
         all_x = torch.cat([x for x, y in minibatches])
