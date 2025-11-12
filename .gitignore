@@ -1,0 +1,12 @@
+# Byte‑compiled Python cache
+__pycache__/
+
+# Pickle files
+*.pkl
+*done
+*err.txt
+
+# Data directories
+data/
+dg/
+results*/

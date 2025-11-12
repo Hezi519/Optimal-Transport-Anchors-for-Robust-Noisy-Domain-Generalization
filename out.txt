@@ -1,0 +1,88 @@
+Environment:
+	Python: 3.11.5
+	PyTorch: 2.1.1+cu121
+	Torchvision: 0.16.1+cu121
+	CUDA: 12.1
+	CUDNN: 8902
+	NumPy: 1.24.3
+	PIL: 9.4.0
+Args:
+	algorithm: ERM
+	checkpoint_freq: None
+	data_dir: /mnt/VOL6/fangzhou/local/trainningcode/zilin_dg/NoiseRobustDG-main/data
+	dataset: OfficeHome
+	holdout_fraction: 0.2
+	hparams: {"flip_prob":0.25, "study_noise":1, "mapsty":"itera", "lambda":1.0}
+	hparams_seed: 18
+	include_id: False
+	log_train_env: False
+	num_workers: None
+	output_dir: ./results/erm_oh_baseline/8e35978623c40b16e9a4cc68cd63c6bc
+	save_model: False
+	save_model_every_checkpoint: False
+	seed: 7047969
+	skip_model_save: False
+	start_step: 0
+	steps: 5000
+	task: domain_generalization
+	test_envs: [0]
+	trial_seed: 0
+	uda_holdout_fraction: 0
+	wandb: False
+HParams:
+	batch_size: 16
+	class_balanced: False
+	data_augmentation: True
+	dataset: OfficeHome
+	flip_prob: 0.25
+	freeze_bn: True
+	include_ids: False
+	lambda: 1.0
+	lr: 1.164032944108835e-05
+	mapsty: itera
+	mnist_dropout: 0.0
+	no_featurizer: False
+	nonlinear_classifier: False
+	random_seed: 2084578098
+	resnet101: False
+	resnet152: False
+	resnet18: False
+	resnet34: False
+	resnet_dropout: 0.0
+	resnet_pretrained: True
+	spu_err: [0.1, 0.2, 0.9]
+	study_noise: 1
+	test_batch_size: 256
+	weight_decay: 0.0008766809489187495
+	wilds_single: False
+	wilds_spu_study: False
+environment Clipart
+% noise:0.2618556618690491
+environment Product
+% noise:0.25163325667381287
+environment Real World
+% noise:0.2517787516117096
+in_splits 4 out_splits 4 uda_splits 0
+/mnt/VOL6/fangzhou/local/trainningcode/zilin_dg/NoiseRobustDG-main/dg/lib/python3.11/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/mnt/VOL6/fangzhou/local/trainningcode/zilin_dg/NoiseRobustDG-main/dg/lib/python3.11/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+env0_in_acc   env0_noisy_a  env0_out_acc  env1_noisy_a  env1_out_acc  env2_noisy_a  env2_out_acc  env3_out_acc  epoch         loss          mem_gb        step          step_time    
+0.0164778579  0.0201224847  0.0103092784  0.0116383169  0.0171821306  0.0127620784  0.0157835400  0.0160734788  0             4.2131218910  4.1484847069  0             6.4401304722 
+0.4907312049  0.0166229221  0.4865979381  0.0053715309  0.4043528064  0.0063810392  0.5129650507  0.5246842710  2             2.9677973394  4.3249688148  300           0.2751138544 
+0.5123583934  0.0227471566  0.5072164948  0.0080572963  0.4581901489  0.0145852325  0.5839909808  0.5396096441  4             2.1719815129  4.3249688148  600           0.2777825157 
+0.5082389289  0.0306211724  0.5360824742  0.0143240824  0.4547537228  0.0218778487  0.5783540023  0.5384615385  7             1.8913766877  4.3249688148  900           0.2774960669 
+0.5113285273  0.0559930009  0.5072164948  0.0438675022  0.4707903780  0.0464904284  0.5772266065  0.5338691160  9             1.6855764802  4.3249688148  1200          0.2790024002 
+0.5030895984  0.1023622047  0.5030927835  0.0778871979  0.4639175258  0.0884229717  0.6031567080  0.5430539610  12            1.5314114706  4.3249688148  1500          0.2786186258 
+0.4407826982  0.1434820647  0.4659793814  0.1181736795  0.4432989691  0.1540565178  0.5885005637  0.5258323766  14            1.3253305205  4.3249688148  1800          0.2779170084 
+0.4654994851  0.1758530184  0.4907216495  0.1548791406  0.4536082474  0.1914311759  0.5772266065  0.5235361653  17            1.1599818486  4.3249688148  2100          0.2776496347 
+0.4562306900  0.2187226597  0.4927835052  0.2309758281  0.4524627721  0.3072014585  0.5918827508  0.5132032147  19            0.9900579007  4.3249688148  2400          0.2787857191 
+0.4315139032  0.2729658793  0.4639175258  0.3025962399  0.4318442153  0.3947128532  0.5400225479  0.4902411022  22            0.8546748737  4.3249688148  2700          0.2776136057 
+0.4222451081  0.3158355206  0.4309278351  0.3312444047  0.4616265750  0.4348222425  0.5366403608  0.4890929966  24            0.7397915175  4.3249688148  3000          0.2788747342 
+0.4227600412  0.3114610674  0.4762886598  0.3706356312  0.4455899198  0.5013673655  0.5580608794  0.4971297359  27            0.6364598008  4.3249688148  3300          0.2785786764 
+0.4124613800  0.3998250219  0.4515463918  0.4028648165  0.4135166094  0.5205104831  0.5512965051  0.4753157290  29            0.5308654433  4.3249688148  3600          0.2936293809 
+0.3985581874  0.3875765529  0.4103092784  0.4485228290  0.4089347079  0.5761166819  0.5332581736  0.4672789897  32            0.4882598455  4.3249688148  3900          0.2741342656 
+0.4124613800  0.4356955381  0.4350515464  0.5040286482  0.4180985109  0.6189608022  0.5219842165  0.4879448909  34            0.4212580733  4.3249688148  4200          0.2780344828 
+0.4243048404  0.4339457568  0.4185567010  0.4879140555  0.4341351661  0.6289881495  0.5591882751  0.4856486797  37            0.3825963072  4.3249688148  4500          0.2798601580 
+0.4119464470  0.4575678040  0.4000000000  0.5443151298  0.4272623139  0.6444849590  0.5219842165  0.4810562572  39            0.3369061603  4.3249688148  4800          0.2754621291 
+
