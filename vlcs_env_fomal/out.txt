@@ -1,0 +1,158 @@
+Environment:
+	Python: 3.10.19
+	PyTorch: 2.1.1+cu121
+	Torchvision: 0.16.1+cu121
+	CUDA: 12.1
+	CUDNN: 8902
+	NumPy: 1.24.3
+	PIL: 9.4.0
+Args:
+	algorithm: NLPGERM
+	checkpoint_freq: None
+	data_dir: /home/u/data
+	dataset: VLCS
+	holdout_fraction: 0.2
+	hparams: {"flip_prob":0.25,"study_noise":1,"mapsty":"fixed","lambda":1.0,"resnet18":1,"batch_size":16,"resnet_pretrained":true,"temp":1.0,"lr":1e-4,"weight_decay":1e-4,"test_batch_size":128}
+	hparams_seed: 0
+	include_id: False
+	log_train_env: False
+	num_workers: None
+	output_dir: ./results/vlcs_env_fomal
+	save_model: False
+	save_model_every_checkpoint: False
+	seed: 0
+	skip_model_save: False
+	start_step: 0
+	steps: 5000
+	task: domain_generalization
+	test_envs: [0]
+	trial_seed: 0
+	uda_holdout_fraction: 0
+	wandb: False
+HParams:
+	batch_size: 16
+	class_balanced: False
+	data_augmentation: True
+	dataset: VLCS
+	domain_noise: None
+	feature_noise: None
+	flip_prob: 0.25
+	freeze_bn: True
+	grad_noise: None
+	include_ids: False
+	input_noise: None
+	lambda: 1.0
+	lr: 0.0001
+	mapsty: fixed
+	mnist_dropout: 0
+	no_featurizer: False
+	nonlinear_classifier: False
+	random_seed: 0
+	resnet101: False
+	resnet152: False
+	resnet18: 1
+	resnet34: False
+	resnet_dropout: 0.0
+	resnet_pretrained: True
+	spu_err: [0.1, 0.2, 0.9]
+	study_noise: 1
+	temp: 1.0
+	test_batch_size: 128
+	weight_decay: 0.0001
+	wilds_single: False
+	wilds_spu_study: False
+environment LabelMe
+% noise:0.24363233149051666
+environment PascalVOC2007
+% noise:0.251263290643692
+environment SUN09
+% noise:0.24502599239349365
+=== VLCS high-level info ===
+dataset.num_classes: 5
+
+--- Env 0 ---
+type(env): <class 'torchvision.datasets.folder.ImageFolder'>
+env.classes: ['bird', 'car', 'chair', 'dog', 'person']
+  label sample: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  unique labels in sample: [0]
+
+--- Env 1 ---
+type(env): <class 'torchvision.datasets.folder.ImageFolder'>
+env.classes: ['bird', 'car', 'chair', 'dog', 'person']
+  label sample: [2, 0, 0, 0, 3, 0, 3, 0, 0, 0, 2, 0, 2, 4, 0, 2, 0, 0, 0, 2]
+  unique labels in sample: [0, 1, 2, 3, 4]
+
+--- Env 2 ---
+type(env): <class 'torchvision.datasets.folder.ImageFolder'>
+env.classes: ['bird', 'car', 'chair', 'dog', 'person']
+  label sample: [0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4]
+  unique labels in sample: [0, 1, 2, 3, 4]
+
+--- Env 3 ---
+type(env): <class 'torchvision.datasets.folder.ImageFolder'>
+env.classes: ['bird', 'car', 'chair', 'dog', 'person']
+  label sample: [0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 1, 0, 0, 0, 0, 3, 1, 0, 0]
+  unique labels in sample: [0, 1, 2, 3, 4]
+=== Full class stats per environment ===
+Env 0 -> counts: tensor([ 403,  209,  201,  114, 1479])
+Env 1 -> counts: tensor([ 350, 1707,  404,  318, 1736])
+Env 2 -> counts: tensor([ 738, 1139,  869,  843, 2150])
+Env 3 -> counts: tensor([ 353, 1423, 1597,  386, 1820])
+Detected large GPU memory. Setting num_workers to 2
+in_splits 4 out_splits 4 uda_splits 0
+<domainbed.lib.misc._SplitDataset object at 0x7b0560f8fd00>
+None
+<domainbed.lib.misc._SplitDataset object at 0x7b0560f8fdf0>
+None
+<domainbed.lib.misc._SplitDataset object at 0x7b0560f8feb0>
+None
+Finished Train Data Loader Initialization!
+Train Data Loaded!
+Eval Data Loaded!
+Noised!
+Eval Data Updated!
+/home/u/anaconda3/envs/dg-noise/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/home/u/anaconda3/envs/dg-noise/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet18_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet18_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+VLCS&0.25
+setting nlp anchor
+[['a photo of a bird'], ['a photo of a car'], ['a photo of a chair'], ['a photo of a dog'], ['a photo of a person']]
+warm~
+{'env0_in_acc': 0.9667532467532467, 'env0_out_acc': 0.9584199584199584, 'env1_out_acc': 0.5636766334440753, 'env2_out_acc': 0.6006974716652136, 'env3_out_acc': 0.6026905829596413, 'env0_noisy_acc': 0.08545454545454545, 'env1_noisy_acc': 0.05894590846047157, 'env2_noisy_acc': 0.05998536942209217}
+======start training!===========
+env0_in_acc   env0_noisy_a  env0_out_acc  env1_noisy_a  env1_out_acc  env2_noisy_a  env2_out_acc  env3_out_acc  epoch         loss          mem_gb        step          step_time    
+0.9667532468  0.0854545455  0.9584199584  0.0589459085  0.5725359911  0.0599853694  0.6024411508  0.5973094170  0             1.3147407770  21.533058166  0             0.7778716087 
+Saving new best score at step: 0 at path: model_best.pkl
+0.9729870130  0.0790909091  0.9688149688  0.0589459085  0.5769656700  0.0585223116  0.6111595466  0.5982062780  2             1.4523066668  21.579741954  300           0.3986490742 
+Saving new best score at step: 300 at path: model_best.pkl
+0.9724675325  0.0781818182  0.9688149688  0.0589459085  0.5758582503  0.0592538405  0.6259808195  0.6062780269  4             1.4189268001  21.579741954  600           0.4009864744 
+Saving new best score at step: 600 at path: model_best.pkl
+[DEBUG align_loss] min=0.2344, max=0.4718, mean=0.3323, w_min=0.0181, w_max=0.0229
+0.9766233766  0.0800000000  0.9708939709  0.0568654646  0.5780730897  0.0636430139  0.6198779425  0.6116591928  7             1.3686692854  21.579741954  900           0.4006501714 
+Saving new best score at step: 900 at path: model_best.pkl
+0.9771428571  0.0836363636  0.9708939709  0.0610263523  0.5913621262  0.0673006584  0.6285963383  0.6134529148  9             1.3428021280  21.579741954  1200          0.4026256243 
+Saving new best score at step: 1200 at path: model_best.pkl
+0.9761038961  0.0827272727  0.9708939709  0.0679611650  0.5825027685  0.0680321873  0.6294681779  0.6125560538  12            1.3111908831  21.579741954  1500          0.4020364110 
+0.9771428571  0.0863636364  0.9708939709  0.0804438280  0.6057585825  0.0753474762  0.6329555362  0.6233183857  14            1.2929735295  21.579741954  1800          0.4040456804 
+Saving new best score at step: 1800 at path: model_best.pkl
+0.9755844156  0.0890909091  0.9750519751  0.0866851595  0.5836101883  0.0841258230  0.6355710549  0.6098654709  17            1.2630973532  21.579741954  2100          0.4029786269 
+0.9740259740  0.0936363636  0.9729729730  0.0950069348  0.5924695460  0.0914411119  0.6390584133  0.6295964126  19            1.2268247755  21.579741954  2400          0.4103694757 
+0.9729870130  0.1009090909  0.9729729730  0.1116504854  0.5858250277  0.1031455743  0.6346992153  0.6278026906  22            1.1983198510  21.579741954  2700          0.4110851312 
+[DEBUG align_loss] min=0.2515, max=0.8012, mean=0.4689, w_min=0.0149, w_max=0.0257
+[DEBUG align_loss] min=0.3004, max=0.8709, mean=0.4714, w_min=0.0139, w_max=0.0246
+0.9672727273  0.1036363636  0.9708939709  0.1213592233  0.6068660022  0.1097293343  0.6416739320  0.6215246637  24            1.1754375543  21.579741954  3000          0.4054804365 
+Saving new best score at step: 3000 at path: model_best.pkl
+[DEBUG align_loss] min=0.2700, max=0.7651, mean=0.4590, w_min=0.0152, w_max=0.0250
+0.9646753247  0.1100000000  0.9708939709  0.1338418863  0.5891472868  0.1155815655  0.6390584133  0.6269058296  27            1.1539354126  21.579741954  3300          0.4056072958 
+[DEBUG align_loss] min=0.2407, max=0.7115, mean=0.4614, w_min=0.0161, w_max=0.0258
+[DEBUG align_loss] min=0.2506, max=0.7620, mean=0.4931, w_min=0.0158, w_max=0.0264
+[DEBUG align_loss] min=0.2616, max=0.7260, mean=0.4172, w_min=0.0152, w_max=0.0242
+0.9563636364  0.1190909091  0.9667359667  0.1400832178  0.5935769657  0.1243599122  0.6364428945  0.6260089686  29            1.1228411861  21.579741954  3600          0.4167581137 
+0.9506493506  0.1309090909  0.9625779626  0.1504854369  0.5869324474  0.1316752012  0.6425457716  0.6286995516  32            1.1016234551  21.579741954  3900          0.4057211963 
+0.9361038961  0.1363636364  0.9480249480  0.1643550624  0.6101882614  0.1441111924  0.6338273758  0.6367713004  34            1.0766873902  21.579741954  4200          0.3973941445 
+Saving new best score at step: 4200 at path: model_best.pkl
+[DEBUG loss] aln=0.4773, ce=0.5085, λ=1.0, T=1.0
+0.9272727273  0.1490909091  0.9376299376  0.1747572816  0.6024363234  0.1602048281  0.6416739320  0.6269058296  37            1.0468039157  21.579741954  4500          0.3987451077 
+0.9168831169  0.1590909091  0.9147609148  0.1844660194  0.6046511628  0.1726408193  0.6355710549  0.6152466368  39            1.0349591696  21.579741954  4800          0.3980718954 
+0.9044155844  0.1627272727  0.9085239085  0.1948682386  0.5968992248  0.1784930505  0.6303400174  0.6295964126  41            1.0341601402  21.579741954  4999          0.3984198510 
