@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.autograd as autograd
-
+import ot
 import copy
 import numpy as np
 from collections import OrderedDict
@@ -2342,6 +2342,68 @@ class NLPGERM(ERM):
         else:
             for param_q, param_k in zip(self.network.parameters(), self.network_ma.parameters()):
                 param_k.data = param_q.data
+
+class OT(NLPGERM):
+    """Optimal Transport based NLP-GERM"""
+    def __init__(self, input_shape, num_classes, num_domains, hparams):
+        super().__init__(input_shape, num_classes, num_domains, hparams)
+        self.ot_reg = hparams['ot_reg']
+        self.ot_unbalanced = hparams['ot_unbalanced']
+        for i in range(len(self.ot_unbalanced)):
+            if self.ot_unbalanced[i] is None:
+                self.ot_unbalanced[i] = float('inf')
+        self.seed = hparams['random_seed']
+    
+    def align_loss(self, fea, y):
+        """
+        Compute optimal transport loss with mapping layers and NLP anchors.
+        """
+        losses = torch.zeros(len(y)).to(y.device)
+        for i in range(len(fea)):
+            source_vec = self.maplayers[y[i]](fea[i])
+            target_vec = self.nlpanchor[y[i]].float()
+            losses[i] = ot.solve_sample(source_vec.unsqueeze(0), target_vec.unsqueeze(0), grad='envelope', 
+                                        random_state=self.seed, reg=self.ot_reg, unbalanced=self.ot_unbalanced).value
+        weights = F.softmax((-losses.detach() * self.hparams['temp'])).detach()
+        return torch.sum(losses * weights), weights
+
+class OTBatch(OT):
+    """Optimal Transport based NLP-GERM"""
+    
+    def align_loss(self, fea, y):
+        """
+        Compute optimal transport loss with mapping layers and NLP anchors.
+        Batched by class label: group all source vectors with the same y[i].
+        """
+        device = y.device
+        losses = torch.zeros(len(y), device=device)
+        labels = y.unique()
+        for cls in labels:
+            # indices in batch with this label
+            idx = (y == cls).nonzero(as_tuple=True)[0]          # shape [n_cls]
+            if idx.numel() == 0:
+                continue
+
+            source_vecs = self.maplayers[cls](fea[idx])          # linear layer is shared per class
+            target_vec = self.nlpanchor[cls].float().unsqueeze(0)
+
+            # call OT solver once for this label
+            # NOTE: potorch's solve_sample supports batched inputs; if not, loop over batch here.
+            val = ot.solve_sample(
+                source_vecs,                    # [n_cls, D]
+                target_vec,                   # [n_cls, D]
+                grad='envelope',
+                random_state=self.seed,
+                reg=self.ot_reg,
+                unbalanced=self.ot_unbalanced
+            ).value                             # expected shape [n_cls]
+
+            # assign back into per-sample losses
+            losses[idx] = val
+
+        weights = F.softmax((-losses.detach() * self.hparams['temp']), dim=0).detach()
+        return torch.sum(losses * weights), weights
+
                 
 class NLPGERM_NoNLP(ERM):
     def __init__(self, input_shape, num_classes, num_domains, hparams):
