@@ -2356,16 +2356,147 @@ class OT(NLPGERM):
     
     def align_loss(self, fea, y):
         """
-        Compute optimal transport loss with mapping layers and NLP anchors.
+        Args:
+            fea: Tensor of shape (batch, dim_feat)
+            y: list of tuples [(class_idx, domain_idx), ...] of length batch
+            where y[i] = (j, k) means the i-th image comes from j-th class and k-th domain
+
+        Requires:
+            self.nlpanchor: Tensor of shape (n_classes, n_domains, dim_embed)
+                            self.nlpanchor[c, d] is the embedding vector for class c, domain d
+            self.maplayers: nn.ModuleList of length n_classes
+                            where self.maplayers[c] maps feat-space -> embed-space
+            self.ot_reg, self.ot_unbalanced, self.seed, self.hparams['temp'] must exist
+
+        Returns:
+            loss: scalar tensor
+            weights: tensor of shape (batch,)
         """
-        losses = torch.zeros(len(y)).to(y.device)
-        for i in range(len(fea)):
-            source_vec = self.maplayers[y[i]](fea[i])
-            target_vec = self.nlpanchor[y[i]].float()
-            losses[i] = ot.solve_sample(source_vec.unsqueeze(0), target_vec.unsqueeze(0), grad='envelope', 
-                                        random_state=self.seed, reg=self.ot_reg, unbalanced=self.ot_unbalanced).value
-        weights = F.softmax((-losses.detach() * self.hparams['temp'])).detach()
-        return torch.sum(losses * weights), weights
+
+        device = fea.device
+        batch_size = fea.size(0)
+        dtype = fea.dtype
+
+        # Convert y (list of (class, domain)) -> two tensors
+        classes = torch.tensor([cls for cls, dom in y], device=device, dtype=torch.int)
+        domains = torch.tensor([dom for cls, dom in y], device=device, dtype=torch.int)
+
+        # We’ll store a per-sample loss, similar to the original code
+        losses = torch.zeros(batch_size, device=device)
+
+        # Unique classes in this batch
+        unique_classes = classes.unique()
+
+        for cls in unique_classes:
+            # Indices of samples belonging to this class
+            mask = (classes == cls)
+            idx = mask.nonzero(as_tuple=False).squeeze(1)
+
+            # --- Collect the features & anchors for this class ---
+            feat_class = fea[idx]                          # (n_samples_class, dim_feat)
+            dom_class  = domains[idx]                       # (n_samples_class,)
+
+            # Map features into embedding space using the class-specific projector
+            mapped_feat_class = self.maplayers[cls](feat_class)  # (n_samples_class, dim_embed)
+
+            # Pick anchors for the same (class, domain) pairs
+            # self.nlpanchor[cls] is (n_domains, dim_embed), index by domain ids
+            nlp_anchor_class = self.nlpanchor[cls, dom_class]     # (n_samples_class, dim_embed)
+
+            # --- Compute OT cost between mapped_feat_class and nlp_anchor_class ---
+
+            # Here we assume solve_sample returns an object with `.value` (scalar)
+            # You may want to pass weights a,b or cost matrix if your API needs it.
+            # Distribute this class loss over all samples in the class
+            losses[idx] = ot.solve_sample(
+                mapped_feat_class,
+                nlp_anchor_class,
+                grad='envelope',
+                random_state=self.seed,
+                reg=self.ot_reg,
+                unbalanced=self.ot_unbalanced,
+            ).value
+
+        # Soft weighting across samples as in your original code
+        # Note: sign convention – we treat larger cost as "worse", so keep it positive.
+        weights = F.softmax(-losses.detach() * self.hparams['temp'], dim=0).detach()
+
+        total_loss = torch.sum(losses * weights)
+
+        return total_loss, weights
+
+class OTWeak(OT):
+    """Weak Optimal Transport based NLP-GERM.
+
+    This class reuses all infrastructure from `OT` (anchors, maplayers, etc.)
+    but overrides `align_loss` to use POT's *weak* OT solver.
+
+    Differentiation follows the envelope theorem:
+
+        - Inner problem:  γ* = argmin_γ  Σ_i a_i || x_i - (1/a_i Σ_j γ_ij y_j ) ||^2
+        - Outer loss:     F(x, y; γ*)    = Σ_i a_i || x_i - (1/a_i Σ_j γ*_ij y_j ) ||^2
+
+    We first solve for γ* with POT on CPU (no gradients).
+    Then we *re-evaluate* the weak-OT objective F in PyTorch using γ* as a
+    constant. Gradients flow only through x (mapped features) and y
+    (anchors, if they were learnable), but not through γ*.
+    """
+    
+    def align_loss(self, fea, y):
+
+        '''-------- All the same as original OT class here -----------'''
+        device = fea.device
+        batch_size = fea.size(0)
+        dtype = fea.dtype
+        classes = torch.tensor([cls for cls, dom in y], device=device, dtype=torch.int)
+        domains = torch.tensor([dom for cls, dom in y], device=device, dtype=torch.int)
+        losses = torch.zeros(batch_size, device=device)
+        unique_classes = classes.unique()
+        for cls in unique_classes:
+            mask = (classes == cls)
+            idx = mask.nonzero(as_tuple=False).squeeze(1)
+            feat_class = fea[idx]
+            dom_class  = domains[idx]
+            mapped_feat_class = self.maplayers[cls](feat_class)
+            nlp_anchor_class = self.nlpanchor[cls, dom_class]
+
+
+            '''--------------- Weak OT specific code below ----------------'''
+            # ------- Prepare data for POT (CPU, numpy, detached) -------
+            Xa_np = mapped_feat_class.detach().cpu().numpy().astype(np.float64)  # (ns, d)
+            Xb_np = nlp_anchor_class.detach().cpu().numpy().astype(np.float64)   # (ns, d)
+
+            # ------- Solve weak OT on CPU (no gradients) -------
+            # gamma_np has shape (ns, ns). This is γ* in the envelope theorem.
+            gamma_np = ot.weak_optimal_transport(Xa_np, Xb_np)
+
+            # Bring γ* back to torch *without* connecting it to the autograd graph.
+            gamma = torch.as_tensor(gamma_np, device=device, dtype=dtype)  # (ns, ns)
+
+            # ------- Re-evaluate weak-OT objective in PyTorch -------
+            # a_distr is the uniform distribution over source samples
+            ns = mapped_feat_class.size(0)
+            a_distr = torch.full((ns,), 1.0 / ns, device=device, dtype=dtype)  # uniform weights
+            # Barycentric projection of targets:
+            # bary_i = (1 / a_i) * Σ_j γ_ij * Xb_j
+            # gamma: (ns, ns), nlp_anchor_class: (ns, dim_embed)
+            # => (ns, dim_embed)
+            bary = (gamma @ nlp_anchor_class) / a_distr.unsqueeze(1).clamp_min(1e-12)
+
+            # Per-sample weak-OT cost: a_i * ||x_i - bary_i||^2
+            cost_per_sample = a_distr * (mapped_feat_class - bary).pow(2).sum(dim=1)       # (ns,)
+
+            # Store per-sample costs back into the global losses tensor
+            losses[idx] = cost_per_sample
+
+        # Soft weighting across samples as in your original code
+        # Note: sign convention – we treat larger cost as "worse", so keep it positive.
+        weights = F.softmax(-losses.detach() * self.hparams['temp'], dim=0).detach()
+
+        total_loss = torch.sum(losses * weights)
+
+        return total_loss, weights
+
 
 class OTBatch(OT):
     """Optimal Transport based NLP-GERM"""
