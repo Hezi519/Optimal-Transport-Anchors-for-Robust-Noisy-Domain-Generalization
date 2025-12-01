@@ -337,7 +337,7 @@ if __name__ == "__main__":
             save_dict["results"] = results
         torch.save(save_dict, os.path.join(args.output_dir, filename))
 
-    if args.algorithm in ['NLPGERM', 'NLPGERM_NoWeight', 'OT']:
+    if isinstance(algorithm, algorithms.NLPGERM):
         print(args.dataset)
         print("setting nlp anchor")
         algorithm.set_nlp_anchor(dataset)
@@ -397,7 +397,7 @@ if __name__ == "__main__":
         else:
             uda_device = env_ids if isinstance(algorithm, algorithms.OT) else None
 
-        if (args.algorithm=='NLPGERM' or args.algorithm=='NLPGERM_NoWeight') \
+        if isinstance(algorithm, algorithms.NLPGERM) \
            and (hparams['mapsty']=='itera') \
            and ((int(step / steps_per_epoch)) % (int(n_steps/steps_per_epoch/hparams['iter_freq']))==0):
             step_vals = algorithm.update_maplayer(minibatches_device, uda_device)

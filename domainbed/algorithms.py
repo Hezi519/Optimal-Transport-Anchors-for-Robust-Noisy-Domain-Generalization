@@ -58,7 +58,8 @@ ALGORITHMS = [
     'SIRM',
     'ERMReg',
     'ERM',
-    'OT', 
+    'OT',
+    'OTWeak', 
 ]
 
 def get_algorithm_class(algorithm_name):
@@ -479,7 +480,7 @@ class OT(NLPGERM):
         self.num_domains = num_domains
         self.ot_reg = hparams['ot_reg']
         self.seed = hparams.get('random_seed', 0)
-        self.ot_unbalanced = None
+        self.ot_unbalanced = hparams['ot_unbalanced']
 
 
     @staticmethod
@@ -570,6 +571,36 @@ class OT(NLPGERM):
             )
         else:
             raise NotImplementedError('Please provide a valid mapsty.')
+    
+    def update(self, minibatches, unlabeled=None):
+        """
+        NLPGERM update + env
+        """
+        all_x, all_y, all_env = self._concat_with_env(minibatches)
+        if unlabeled is not None:
+            all_env = unlabeled
+        else:
+            _, _, all_env = self._concat_with_env(minibatches)
+        if self.global_iter < 5:
+            print("[OT.update] all_env unique:", all_env.unique().tolist())
+        all_fea = self.featurizer(all_x)
+
+        alnloss, weights = self.align_loss(all_fea, all_y, all_env)
+        loss = alnloss * self.hparams['lambda'] + torch.sum(
+            F.cross_entropy(self.classifier(all_fea), all_y, reduction='none') * weights
+        )
+
+        if self.hparams['mapsty'] == 'itera':
+            self.optimizer1.zero_grad()
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        self.update_ma()
+
+        return {'loss': loss.item()}
+
     # ------- EOT -------
 
     def align_loss(self, fea, y, env):
@@ -646,6 +677,8 @@ class OT(NLPGERM):
 
         return total_loss, weights
     # ------- Weak OT -------
+
+class OTWeak(OT):
     def align_loss(self, fea, y, env):
         """Weak Optimal Transport based NLP-GERM.
 
@@ -723,32 +756,3 @@ class OT(NLPGERM):
         total_loss = torch.sum(losses * weights)
 
         return total_loss, weights
-
-    def update(self, minibatches, unlabeled=None):
-        """
-        NLPGERM update + env
-        """
-        all_x, all_y, all_env = self._concat_with_env(minibatches)
-        if unlabeled is not None:
-            all_env = unlabeled
-        else:
-            _, _, all_env = self._concat_with_env(minibatches)
-        if self.global_iter < 5:
-            print("[OT.update] all_env unique:", all_env.unique().tolist())
-        all_fea = self.featurizer(all_x)
-
-        alnloss, weights = self.align_loss(all_fea, all_y, all_env)
-        loss = alnloss * self.hparams['lambda'] + torch.sum(
-            F.cross_entropy(self.classifier(all_fea), all_y, reduction='none') * weights
-        )
-
-        if self.hparams['mapsty'] == 'itera':
-            self.optimizer1.zero_grad()
-
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-
-        self.update_ma()
-
-        return {'loss': loss.item()}
