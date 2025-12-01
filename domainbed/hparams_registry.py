@@ -241,6 +241,16 @@ def _hparams(algorithm, dataset, random_seed):
         _hparam('gda', False, lambda r: True)
         _hparam('beta1', 0.5, lambda r: r.choice([0., 0.5]))
         _hparam('lr_d', 1e-3, lambda r: 10**r.uniform(-4.5, -2.5))
+    elif algorithm in ["NLPGERM", "NLPGERM_NoWeight", "OT"]:
+        _hparam('lambda', 1.0, lambda r: 10**r.uniform(-1, 1))
+        _hparam('temp', 1.0, lambda r: r.choice([0.5, 1.0, 2.0]))
+        _hparam('mapsty', 'all', lambda r: r.choice(['all', 'fixed', 'itera']))
+        _hparam('iter_freq', 10, lambda r: 10)
+
+        if algorithm == "OT":
+            _hparam('ot_reg', 0.05, lambda r: 0.1)
+            _hparam('ot_unbalanced', [None, None],
+                    lambda r: [None, None])
 
 
     # Dataset-and-algorithm-specific hparam definitions. Each block of code

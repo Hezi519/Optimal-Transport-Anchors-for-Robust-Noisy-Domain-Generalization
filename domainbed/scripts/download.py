@@ -51,6 +51,94 @@ def download_and_extract(url, dst, remove=True):
 
 # VLCS ########################################################################
 
+_VLCS_ENV_MAPPING = {
+    "CALTECH": "Caltech101",
+    "LABELME": "LabelMe",
+    "PASCAL": "PascalVOC2007",
+    "SUN": "SUN09",
+}
+
+_VLCS_CLASS_MAPPING = {
+    "0": "bird",
+    "1": "car",
+    "2": "chair",
+    "3": "dog",
+    "4": "person",
+}
+
+_VLCS_SPLITS = ["train", "test", "full", "crossval"]
+_VLCS_IMG_EXTS = (".jpg", ".jpeg", ".png", ".bmp", ".gif")
+
+
+def _guess_vlcs_raw_dir(base_dir):
+    """Best-effort search for the extracted VLCS_raw directory."""
+
+    candidates = [
+        os.path.join(base_dir, "VLCS_raw"),
+        os.path.join(base_dir, "VLCSraw"),
+        os.path.join(base_dir, "VLCS", "VLCS_raw"),
+        os.path.join(base_dir, "VLCS", "raw"),
+    ]
+
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+
+    # fallback: look for a directory that already has the CALTECH/LABELME/... structure
+    for entry in os.listdir(base_dir):
+        candidate = os.path.join(base_dir, entry)
+        if not os.path.isdir(candidate):
+            continue
+
+        if all(os.path.isdir(os.path.join(candidate, env)) for env in _VLCS_ENV_MAPPING):
+            return candidate
+
+    return None
+
+
+def _reorganize_vlcs(raw_base, dst_base):
+    num_copied = 0
+
+    for raw_env, new_env in _VLCS_ENV_MAPPING.items():
+        raw_env_dir = os.path.join(raw_base, raw_env)
+        if not os.path.isdir(raw_env_dir):
+            print(f"[WARN] Env dir not found: {raw_env_dir}")
+            continue
+
+        for split in _VLCS_SPLITS:
+            split_dir = os.path.join(raw_env_dir, split)
+            if not os.path.isdir(split_dir):
+                print(f"[INFO] Skip missing split: {split_dir}")
+                continue
+
+            for class_idx, class_name in _VLCS_CLASS_MAPPING.items():
+                src_class_dir = os.path.join(split_dir, class_idx)
+                if not os.path.isdir(src_class_dir):
+                    print(f"[INFO] No dir: {src_class_dir}")
+                    continue
+
+                dst_class_dir = os.path.join(dst_base, new_env, class_name)
+                os.makedirs(dst_class_dir, exist_ok=True)
+
+                for fname in os.listdir(src_class_dir):
+                    src_path = os.path.join(src_class_dir, fname)
+                    if not os.path.isfile(src_path):
+                        continue
+
+                    if not fname.lower().endswith(_VLCS_IMG_EXTS):
+                        continue
+
+                    dst_name = f"{split}_{fname}"
+                    dst_path = os.path.join(dst_class_dir, dst_name)
+
+                    shutil.copy2(src_path, dst_path)
+                    num_copied += 1
+
+                    if num_copied % 1000 == 0:
+                        print(f"[VLCS] Copied {num_copied} files...")
+
+    print(f"[VLCS] Done. Total copied: {num_copied}")
+
 # Slower, but builds dataset from the original sources
 #
 # def download_vlcs(data_dir):
@@ -99,8 +187,21 @@ def download_vlcs(data_dir):
     # Original URL: http://www.eecs.qmul.ac.uk/~dl307/project_iccv2017
     full_path = stage_path(data_dir, "VLCS")
 
+    archive_path = os.path.join(data_dir, "VLCS.tar.gz")
     download_and_extract("https://drive.google.com/uc?id=1skwblH1_okBwxWxmRsp9_qi15hyPpxg8",
-                         os.path.join(data_dir, "VLCS.tar.gz"))
+                         archive_path)
+
+    raw_dir = _guess_vlcs_raw_dir(data_dir)
+    if raw_dir is None:
+        print("[WARN] Could not locate VLCS_raw directory after download; skipping reorg.")
+        return
+
+    if os.path.abspath(raw_dir) == os.path.abspath(full_path):
+        print("[INFO] VLCS directory already organized; skipping copy.")
+        return
+
+    _reorganize_vlcs(raw_dir, full_path)
+    
 
 
 # MNIST #######################################################################
@@ -366,10 +467,10 @@ if __name__ == "__main__":
     args.data_dir = os.path.expanduser(args.data_dir)
 
     # download_mnist(args.data_dir)
-    # download_pacs(args.data_dir)
+    download_pacs(args.data_dir)
     # download_office_home(args.data_dir)
-    # download_vlcs(args.data_dir)
-    download_domain_net(args.data_dir)
+    download_vlcs(args.data_dir)
+    # download_domain_net(args.data_dir)
     # download_terra_incognita(args.data_dir)
     # download_sviro(args.data_dir)
 

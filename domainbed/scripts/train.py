@@ -194,6 +194,7 @@ if __name__ == "__main__":
         if i not in args.test_envs:
             print(env)
             print(env_weights)
+    train_env_ids = [i for i in range(len(in_splits)) if i not in args.test_envs]
     train_loaders = [InfiniteDataLoader(
         dataset=env,
         weights=env_weights,
@@ -336,23 +337,16 @@ if __name__ == "__main__":
             save_dict["results"] = results
         torch.save(save_dict, os.path.join(args.output_dir, filename))
 
-    if args.algorithm=='NLPGERM' or args.algorithm=='NLPGERM_NoWeight':
+    if isinstance(algorithm, algorithms.NLPGERM):
         print(args.dataset)
-        # if 'WILDSWaterbirds' in args.dataset:
-        #     algorithm.set_nlp_anchor(dataset, data_name = args.dataset)
-        # else:
-        # print(dir(dataset))
         print("setting nlp anchor")
         algorithm.set_nlp_anchor(dataset)
         print('warm~')
-        # for x,y in next(train_minibatches_iterator):
-        #     print(y)
-        #     break
-        for step in range(start_step,n_steps//10):
+        for step in range(start_step, n_steps//10):
             minibatches_device = [(x.to(device), y.to(device))
-            for x,y in next(train_minibatches_iterator)]    
+                                for x, y in next(train_minibatches_iterator)]
             step_vals = algorithm.update_cold(minibatches_device, None)
-        results={}
+        results = {}
         evals = zip(eval_loader_names, eval_loaders, eval_weights)
         for name, loader, weights in evals:
             acc = misc.accuracy(algorithm, loader, weights, device)
@@ -367,21 +361,45 @@ if __name__ == "__main__":
         hparams['mapsty']='fixed'
     for step in range(start_step, n_steps):
         step_start_time = time.time()
-        if args.include_id:
-            minibatches_device = [(x.to(device), y.to(device), idx.to(device))
-            for x,y,idx in next(train_minibatches_iterator)]
+
+        batches = next(train_minibatches_iterator)
+
+        if args.include_id and isinstance(algorithm, algorithms.OT):
+            raise NotImplementedError("OT 目前不支持 include_id=True")
+
+        if isinstance(algorithm, algorithms.OT):
+            minibatches_device = []
+            env_id_list = []
+            for loader_idx, (x, y) in enumerate(batches):
+                x = x.to(device)
+                y = y.to(device)
+                minibatches_device.append((x, y))
+
+                global_env_id = train_env_ids[loader_idx]
+                env_id_list.append(
+                    torch.full_like(y, global_env_id, device=device)
+                )
+            env_ids = torch.cat(env_id_list, dim=0)
+            if step % 500 == 0:
+                print(f"[train loop] step {step}, env_ids unique:", env_ids.unique().tolist())
         else:
-            minibatches_device = [(x.to(device), y.to(device))
-            for x,y in next(train_minibatches_iterator)]
+            if args.include_id:
+                minibatches_device = [(x.to(device), y.to(device), idx.to(device))
+                                      for x, y, idx in batches]
+            else:
+                minibatches_device = [(x.to(device), y.to(device))
+                                      for x, y in batches]
+            env_ids = None
 
         if args.task == "domain_adaptation":
             uda_device = [x.to(device)
-                for x,_ in next(uda_minibatches_iterator)]
+                          for x, _ in next(uda_minibatches_iterator)]
         else:
-            uda_device = None
-        
-        # if (args.algorithm=='NLPGERM' or args.algorithm=='NLPGERM_NoWeight') and (hparams['mapsty']=='itera') and ((int(step / steps_per_epoch)) % (int(n_steps/steps_per_epoch/10))==0):
-        if (args.algorithm=='NLPGERM' or args.algorithm=='NLPGERM_NoWeight') and (hparams['mapsty']=='itera') and ((int(step / steps_per_epoch)) % (int(n_steps/steps_per_epoch/hparams['iter_freq']))==0):
+            uda_device = env_ids if isinstance(algorithm, algorithms.OT) else None
+
+        if isinstance(algorithm, algorithms.NLPGERM) \
+           and (hparams['mapsty']=='itera') \
+           and ((int(step / steps_per_epoch)) % (int(n_steps/steps_per_epoch/hparams['iter_freq']))==0):
             step_vals = algorithm.update_maplayer(minibatches_device, uda_device)
         else:
             step_vals = algorithm.update(minibatches_device, uda_device)
