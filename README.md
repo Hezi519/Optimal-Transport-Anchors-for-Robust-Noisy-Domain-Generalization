@@ -1,30 +1,31 @@
-The algorithm.py have both weak OT and EOT version of align_loss, please remember to choose the one you need and comment out the other one before running.
+# Optimal Transport Anchors for Robust-Noisy Domain Generalization
 
-Use python -m domainbed.scripts.train   --data_dir /home/u/data   --output_dir ./results/choose_your_own   --algorithm OT 
-  --dataset PACS   --test_env 0   --steps 10000   --holdout_fraction 0.2   --hparams '{
-    "flip_prob": 0.05,
-    "study_noise": 1,
-    "mapsty": "fixed",
-    "lambda": 1.0,
-    "resnet18": 1,
-    "batch_size": 16,
-    "resnet_pretrained": true,
-    "temp": 1.0,
-    "ot_reg": 0.1,
-    "lr": 1e-4
-  }'
-to run our OT methods. 
+This repository is based on the implementation of [Understanding Domain Generalization: A Noise Robustness Perspective](https://github.com/qiaoruiyt/NoiseRobustDG) in ICLR 2024 by [Rui Qiao](https://qiaoruiyt.github.io) and [Bryan Kian Hsiang Low](https://www.comp.nus.edu.sg/~lowkh/research.html).
 
-Use python -m domainbed.scripts.train   --data_dir /home/u/data   --output_dir ./results/choose_your_own   --algorithm ERM 
-  --dataset PACS   --test_env 0   --steps 10000   --holdout_fraction 0.2   --hparams '{
-    "flip_prob": 0.05,
-    "study_noise": 1,
-    "mapsty": "fixed",
-    "lambda": 1.0,
-    "resnet18": 1,
-    "batch_size": 16,
-    "resnet_pretrained": true,
-    "temp": 1.0,
-    "ot_reg": 0.1,
-    "lr": 1e-4
-  }'
+## To replicate our results
+
+Like Domainbed, this repo can be easily setup without installing many other packages if you have already setup a Python environment with the latest PyTorch. The required packages can be installed by:
+```sh
+pip install -r domainbed/requirements.txt
+```
+
+Download the datasets (The gdown version can affect the downloading of certain datasets from Google Drive. Please consider using the recommended version in `requirements.txt`):
+
+```sh
+python3 -m domainbed.scripts.download \
+       --data_dir=~/data
+```
+
+Train alignments with the exact configuration as ours:
+
+```sh
+source run.sh
+```
+
+## To reproduce our exact numbers
+
+We have provided the data logs in our training runs. To reproduce our exact numbers, run:
+
+```sh
+python -m domainbed.scripts.extract_results
+```
